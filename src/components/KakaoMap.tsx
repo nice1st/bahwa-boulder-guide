@@ -453,9 +453,9 @@ export default function KakaoMap({
     })
 
     const tryClose = (e: Event) => {
-      // 지도 div 자체 또는 카카오맵 내부 요소에서만 닫기 (패널/오버레이 UI 제외)
+      // mapRef div 내부에서 발생한 터치만 처리 (패널/오버레이는 mapRef 바깥)
       const target = e.target as HTMLElement
-      if (target.closest('[data-panel]') || target.closest('[data-overlay-ui]')) return
+      if (!mapRef.current?.contains(target)) return
       setFilterOpen(false)
       if (panToTimerRef.current) {
         clearTimeout(panToTimerRef.current)
@@ -463,9 +463,10 @@ export default function KakaoMap({
       }
       if (!suppressCloseRef.current && selectedMarkerRef.current) handleClose()
     }
-    const mapEl = mapRef.current!
-    mapEl.addEventListener('mousedown', tryClose)
-    mapEl.addEventListener('touchstart', tryClose, { passive: true })
+    // 부모 div가 아닌 최상위 컨테이너에서 캡처 — mapRef 내부인지 확인
+    const container = mapRef.current!.parentElement!
+    container.addEventListener('mousedown', tryClose)
+    container.addEventListener('touchstart', tryClose, { passive: true })
 
     renderMarkersRef.current()
   }, [mapReady, handleClose])
