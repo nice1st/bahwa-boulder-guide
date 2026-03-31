@@ -19,6 +19,7 @@ export default function AdminPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingMarker, setEditingMarker] = useState<Marker | null>(null)
   const [mapClickCoords, setMapClickCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [mapBounds, setMapBounds] = useState<{ sw: { lat: number; lng: number }; ne: { lat: number; lng: number } } | null>(null)
 
   const fetchMarkers = async () => {
     const { data } = await supabase.from('markers').select('*').order('created_at', { ascending: false })
@@ -44,6 +45,10 @@ export default function AdminPage() {
   const handleMapClick = (lat: number, lng: number) => {
     setMapClickCoords({ lat, lng })
   }
+
+  const visibleMarkers = mapBounds
+    ? markers.filter((m) => m.lat >= mapBounds.sw.lat && m.lat <= mapBounds.ne.lat && m.lng >= mapBounds.sw.lng && m.lng <= mapBounds.ne.lng)
+    : markers
 
   const isCreatingMarker = showForm && !editingMarker
   const [listHeight, setListHeight] = useState(200)
@@ -103,8 +108,13 @@ export default function AdminPage() {
           <UserManager />
         </div>
       ) : tab === 'paths' ? (
-        <div className="flex-1 overflow-y-auto p-6">
-          <PathManager markers={markers} />
+        <div className="flex flex-1 overflow-hidden">
+          <div className="w-1/2 flex-shrink-0 border-r border-gray-200">
+            <KakaoMap mode="admin" adminMarkers={markers} />
+          </div>
+          <div className="flex-1 overflow-y-auto p-6">
+            <PathManager markers={markers} />
+          </div>
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
@@ -117,6 +127,7 @@ export default function AdminPage() {
               onAdminMarkerSelect={handleMapMarkerSelect}
               onAdminMapClick={handleMapClick}
               isCreatingMarker={isCreatingMarker}
+              onBoundsChange={setMapBounds}
             />
           </div>
 
@@ -137,34 +148,15 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {showForm ? (
-              <div className="flex-1 overflow-y-auto p-6">
-                <MarkerForm
-                  marker={editingMarker}
-                  mapClickCoords={mapClickCoords}
-                  onDone={() => {
-                    setShowForm(false)
-                    setEditingMarker(null)
-                    setMapClickCoords(null)
-                    fetchMarkers()
-                  }}
-                  onCancel={() => {
-                    setShowForm(false)
-                    setEditingMarker(null)
-                    setMapClickCoords(null)
-                  }}
-                />
-              </div>
-            ) : selectedMarkerId ? (
+            {selectedMarkerId ? (
               <div ref={containerRef} className="flex flex-1 flex-col overflow-hidden">
                 {/* 마커 목록 (리사이즈 가능) */}
                 <div className="flex-shrink-0 overflow-y-auto" style={{ height: listHeight }}>
                   <MarkerList
-                    markers={markers}
+                    markers={visibleMarkers}
                     selectedId={selectedMarkerId}
                     onSelect={(id) => {
                       setSelectedMarkerId(id)
-                      setShowForm(false)
                     }}
                     onEdit={(m) => {
                       setEditingMarker(m)
@@ -180,10 +172,21 @@ export default function AdminPage() {
                 >
                   <div className="h-0.5 w-8 rounded-full bg-gray-300" />
                 </div>
-                {/* 루트 매니저 */}
-                <div className="flex-1 overflow-y-auto p-6">
-                  <RouteManager markerId={selectedMarkerId} />
-                </div>
+                {/* 루트 매니저 (볼더만) */}
+                {(() => {
+                  const selectedMarker = markers.find((m) => m.id === selectedMarkerId)
+                  return selectedMarker?.type === 'boulder' ? (
+                    <div className="flex-1 overflow-y-auto p-6">
+                      <RouteManager markerId={selectedMarkerId} />
+                    </div>
+                  ) : (
+                    <div className="flex flex-1 items-center justify-center">
+                      <p className="text-sm text-gray-400">
+                        {selectedMarker ? `${selectedMarker.name} (${selectedMarker.type})` : ''}
+                      </p>
+                    </div>
+                  )
+                })()}
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto">
@@ -192,7 +195,6 @@ export default function AdminPage() {
                   selectedId={selectedMarkerId}
                   onSelect={(id) => {
                     setSelectedMarkerId(id)
-                    setShowForm(false)
                   }}
                   onEdit={(m) => {
                     setEditingMarker(m)
@@ -200,6 +202,35 @@ export default function AdminPage() {
                   }}
                   onDelete={handleDelete}
                 />
+              </div>
+            )}
+
+            {/* 마커 추가/수정 모달 */}
+            {showForm && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                <div className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+                  <button
+                    onClick={() => { setShowForm(false); setEditingMarker(null); setMapClickCoords(null) }}
+                    className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  >
+                    ✕
+                  </button>
+                  <MarkerForm
+                    marker={editingMarker}
+                    mapClickCoords={mapClickCoords}
+                    onDone={() => {
+                      setShowForm(false)
+                      setEditingMarker(null)
+                      setMapClickCoords(null)
+                      fetchMarkers()
+                    }}
+                    onCancel={() => {
+                      setShowForm(false)
+                      setEditingMarker(null)
+                      setMapClickCoords(null)
+                    }}
+                  />
+                </div>
               </div>
             )}
           </div>

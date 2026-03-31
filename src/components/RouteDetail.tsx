@@ -23,7 +23,7 @@ export default function RouteDetail({ route, visible, onBack, onClose }: RouteDe
 
   const closeViewer = useCallback(() => setViewerOpen(false), [])
 
-  usePopstate(onBack)
+  usePopstate(onBack, !viewerOpen)
 
   const panelSwipe = useSwipe(undefined, onBack, onClose)
   const photoSwipe = useSwipe(

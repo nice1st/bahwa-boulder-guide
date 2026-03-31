@@ -62,6 +62,8 @@ interface KakaoMapProps {
   onAdminMapClick?: (lat: number, lng: number) => void
   // 어드민: 마커 생성 모드
   isCreatingMarker?: boolean
+  // 어드민: 뷰포트 변경 콜백
+  onBoundsChange?: (bounds: { sw: { lat: number; lng: number }; ne: { lat: number; lng: number } }) => void
 }
 
 export default function KakaoMap({
@@ -71,6 +73,7 @@ export default function KakaoMap({
   onAdminMarkerSelect,
   onAdminMapClick,
   isCreatingMarker = false,
+  onBoundsChange,
 }: KakaoMapProps = {}) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<any>(null)
@@ -110,6 +113,8 @@ export default function KakaoMap({
   onAdminMapClickRef.current = onAdminMapClick
   const isCreatingMarkerRef = useRef(isCreatingMarker)
   isCreatingMarkerRef.current = isCreatingMarker
+  const onBoundsChangeRef = useRef(onBoundsChange)
+  onBoundsChangeRef.current = onBoundsChange
 
   // 데이터 fetch (사용자 모드만)
   useEffect(() => {
@@ -285,14 +290,14 @@ export default function KakaoMap({
         const el = document.createElement('div')
         el.style.cssText = `
           cursor: pointer;
-          font-size: 28px;
+          font-size: 17px;
           line-height: 1;
           filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
           transition: transform 0.15s;
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
           user-select: none;
-          padding: 8px;
+          padding: 6px;
         `
         el.textContent = MARKER_ICONS[m.type] || '📍'
         el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.3)' })
@@ -422,6 +427,18 @@ export default function KakaoMap({
     window.kakao.maps.event.addListener(map, 'zoom_changed', () => renderMarkersRef.current())
     window.kakao.maps.event.addListener(map, 'idle', () => renderMarkersRef.current())
 
+    const reportBounds = () => {
+      if (!onBoundsChangeRef.current) return
+      const bounds = map.getBounds()
+      const sw = bounds.getSouthWest()
+      const ne = bounds.getNorthEast()
+      onBoundsChangeRef.current({
+        sw: { lat: sw.getLat(), lng: sw.getLng() },
+        ne: { lat: ne.getLat(), lng: ne.getLng() },
+      })
+    }
+    window.kakao.maps.event.addListener(map, 'idle', reportBounds)
+
     window.kakao.maps.event.addListener(map, 'dragstart', () => {
       if (panToTimerRef.current) {
         clearTimeout(panToTimerRef.current)
@@ -441,8 +458,9 @@ export default function KakaoMap({
       setFilterOpen(false)
       if (!suppressCloseRef.current && selectedMarkerRef.current) handleClose()
     }
-    window.kakao.maps.event.addListener(map, 'mousedown', tryClose)
-    window.kakao.maps.event.addListener(map, 'touchstart', tryClose)
+    const mapEl = mapRef.current!
+    mapEl.addEventListener('mousedown', tryClose)
+    mapEl.addEventListener('touchstart', tryClose, { passive: true })
 
     renderMarkersRef.current()
   }, [mapReady, handleClose])

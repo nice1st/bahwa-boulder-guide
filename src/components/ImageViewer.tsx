@@ -13,7 +13,8 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
   const [index, setIndex] = useState(initialIndex)
   const [zoomed, setZoomed] = useState(false)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
-  const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null)
+  const [swiping, setSwiping] = useState(false)
+  const [swipeDelta, setSwipeDelta] = useState(0)
 
   // 스와이프
   const startX = useRef(0)
@@ -23,7 +24,6 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
 
   // 더블탭
   const lastTap = useRef(0)
-  const tapPos = useRef({ x: 0, y: 0 })
 
   // 줌 드래그
   const dragging = useRef(false)
@@ -33,17 +33,11 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
   usePopstate(onClose)
 
   const goNext = useCallback(() => {
-    if (index < images.length - 1) {
-      setSlideDir('left')
-      setTimeout(() => { setIndex((i) => i + 1); setSlideDir(null) }, 200)
-    }
+    if (index < images.length - 1) setIndex((i) => i + 1)
   }, [index, images.length])
 
   const goPrev = useCallback(() => {
-    if (index > 0) {
-      setSlideDir('right')
-      setTimeout(() => { setIndex((i) => i - 1); setSlideDir(null) }, 200)
-    }
+    if (index > 0) setIndex((i) => i - 1)
   }, [index])
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -56,30 +50,26 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
     // 더블탭 감지
     const now = Date.now()
     if (now - lastTap.current < 300) {
-      // 더블탭
       if (zoomed) {
         setZoomed(false)
         setOffset({ x: 0, y: 0 })
       } else {
         setZoomed(true)
-        // 탭 위치 기준으로 확대
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-        setOffset({
-          x: -(t.clientX - rect.width / 2),
-          y: -(t.clientY - rect.height / 2),
-        })
+        setOffset({ x: 0, y: 0 })
       }
       lastTap.current = 0
       return
     }
     lastTap.current = now
-    tapPos.current = { x: t.clientX, y: t.clientY }
 
     // 줌 상태에서 드래그
     if (zoomed) {
       dragging.current = true
       dragStart.current = { x: t.clientX, y: t.clientY }
       dragOffset.current = { ...offset }
+    } else {
+      setSwiping(true)
+      setSwipeDelta(0)
     }
   }
 
@@ -93,6 +83,8 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
         x: dragOffset.current.x + (t.clientX - dragStart.current.x),
         y: dragOffset.current.y + (t.clientY - dragStart.current.y),
       })
+    } else if (!zoomed && swiping) {
+      setSwipeDelta(deltaX.current)
     }
   }
 
@@ -100,6 +92,9 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
     dragging.current = false
 
     if (zoomed) return
+
+    setSwiping(false)
+    setSwipeDelta(0)
 
     const absX = Math.abs(deltaX.current)
     const absY = Math.abs(deltaY.current)
@@ -112,11 +107,9 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
     }
   }
 
-  const slideClass = slideDir === 'left'
-    ? 'translate-x-[-30px] opacity-0'
-    : slideDir === 'right'
-    ? 'translate-x-[30px] opacity-0'
-    : 'translate-x-0 opacity-100'
+  // 갤러리 translateX: 현재 인덱스 기준 + 스와이프 중 드래그 오프셋
+  const galleryOffset = -(index * 100)
+  const dragPx = swiping ? swipeDelta : 0
 
   return (
     <div
@@ -125,37 +118,59 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
     >
       {/* 닫기 */}
       <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white text-xl active:bg-white/30"
+        onClick={(e) => { e.stopPropagation(); onClose() }}
+        className="absolute top-4 right-4 z-[60] flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white text-xl active:bg-white/30"
       >
         ✕
       </button>
 
       {/* 카운터 */}
       {images.length > 1 && (
-        <div className="absolute top-4 left-4 rounded-full bg-white/20 px-3 py-1 text-sm text-white">
+        <div className="absolute top-4 left-4 z-[60] rounded-full bg-white/20 px-3 py-1 text-sm text-white">
           {index + 1} / {images.length}
         </div>
       )}
 
-      {/* 이미지 */}
+      {/* 갤러리 컨테이너 */}
       <div
-        className="h-full w-full flex items-center justify-center select-none overflow-hidden"
+        className="h-full w-full overflow-hidden select-none"
         onClick={(e) => e.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <img
-          src={images[index]}
-          alt=""
-          className={`max-h-full max-w-full object-contain pointer-events-none transition-all duration-200 ease-out ${slideClass}`}
-          draggable={false}
-          style={zoomed ? {
-            transform: `scale(2.5) translate(${offset.x / 2.5}px, ${offset.y / 2.5}px)`,
-            transition: dragging.current ? 'none' : undefined,
-          } : undefined}
-        />
+        <div
+          className="flex h-full"
+          style={{
+            transform: `translateX(calc(${galleryOffset}% + ${dragPx}px))`,
+            transition: swiping ? 'none' : 'transform 300ms ease-out',
+          }}
+        >
+          {images.map((src, i) => (
+            <div
+              key={i}
+              className="flex h-full w-full flex-shrink-0 items-center justify-center"
+            >
+              <img
+                src={src}
+                alt=""
+                className="max-h-full max-w-full object-contain pointer-events-none"
+                draggable={false}
+                style={
+                  i === index && zoomed
+                    ? {
+                        transform: `scale(2.5) translate(${offset.x / 2.5}px, ${offset.y / 2.5}px)`,
+                        transition: dragging.current ? 'none' : 'transform 300ms ease-out',
+                      }
+                    : {
+                        transform: 'scale(1)',
+                        transition: 'transform 300ms ease-out',
+                      }
+                }
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* 좌우 버튼 (PC) */}

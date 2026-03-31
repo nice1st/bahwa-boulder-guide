@@ -2,8 +2,10 @@ import { useEffect } from 'react'
 
 const POPSTATE_IGNORE_KEY = '__popstate_ignore_flag'
 
-export function usePopstate(onBack: () => void) {
+export function usePopstate(onBack: () => void, enabled: boolean = true) {
   useEffect(() => {
+    if (!enabled) return
+
     let lastFired = 0
 
     const handlePopState = () => {
@@ -26,14 +28,14 @@ export function usePopstate(onBack: () => void) {
 
     return () => {
       window.removeEventListener('popstate', handlePopState)
-      
+
       // 언마운트 될 때, 아직 현재 히스토리가 자신이 푸시한 상태라면 뒤로가기 실행
       // (X 버튼이나 배경 클릭으로 닫는 경우 히스토리 스택 복구)
       if (window.history.state?.modalId === modalId) {
         // @ts-expect-error global flag
         window[POPSTATE_IGNORE_KEY] = true
         window.history.back()
-        
+
         // 브라우저에 따라 back()의 popstate 이벤트가 약간 지연될 수 있으므로
         // 에러를 방지하기 위해 일정 시간 후 flag 초기화
         setTimeout(() => {
@@ -42,5 +44,5 @@ export function usePopstate(onBack: () => void) {
         }, 100)
       }
     }
-  }, [onBack])
+  }, [onBack, enabled])
 }

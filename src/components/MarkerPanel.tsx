@@ -35,7 +35,9 @@ export default function MarkerPanel({
   const [viewerIndex, setViewerIndex] = useState(0)
   const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null)
 
-  usePopstate(onClose)
+  const isRouteOpen = selectedRoute !== null
+  const isViewerOpen = viewerImages !== null
+  usePopstate(onClose, !isRouteOpen && !isViewerOpen)
 
   useEffect(() => {
     setPhotoIndex(0)
@@ -109,7 +111,9 @@ export default function MarkerPanel({
   return (
     <>
       <div
-        className={`absolute bottom-0 left-0 right-0 z-20 max-h-[60vh] overflow-y-auto rounded-t-2xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-out ${
+        onTouchStart={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        className={`absolute bottom-0 left-0 right-0 z-20 max-h-[60vh] overflow-y-auto rounded-t-2xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-out touch-action-pan-y ${
           visible ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
