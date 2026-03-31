@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useSwipe } from '@/lib/useSwipe'
+import { usePopstate } from '@/lib/usePopstate'
 
 interface ImageViewerProps {
   images: string[]
@@ -11,6 +12,8 @@ interface ImageViewerProps {
 
 export default function ImageViewer({ images, initialIndex, onClose }: ImageViewerProps) {
   const [index, setIndex] = useState(initialIndex)
+
+  usePopstate(onClose)
 
   const swipe = useSwipe(
     () => setIndex((i) => Math.min(images.length - 1, i + 1)),

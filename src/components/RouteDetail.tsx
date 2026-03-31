@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSwipe } from '@/lib/useSwipe'
+import { usePopstate } from '@/lib/usePopstate'
 import ImageViewer from './ImageViewer'
 import type { Route, Comment } from '@/types'
 
@@ -19,6 +20,8 @@ export default function RouteDetail({ route, visible, onBack, onClose }: RouteDe
   const [submitting, setSubmitting] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
   const [viewerOpen, setViewerOpen] = useState(false)
+
+  usePopstate(onBack)
 
   const panelSwipe = useSwipe(undefined, onBack, onClose)
   const photoSwipe = useSwipe(

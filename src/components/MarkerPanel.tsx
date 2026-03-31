@@ -3,13 +3,14 @@
 import { useState, useCallback, useEffect } from 'react'
 import type { Marker, Route } from '@/types'
 import { useSwipe } from '@/lib/useSwipe'
+import { usePopstate } from '@/lib/usePopstate'
 import ImageViewer from './ImageViewer'
 import RouteDetail from './RouteDetail'
 
 interface MarkerPanelProps {
   marker: Marker
   routes: Route[]
-  gradeFilter: string
+  gradeFilters: string[]
   padFilter: string
   visible: boolean
   activePath: string | null
@@ -20,7 +21,7 @@ interface MarkerPanelProps {
 export default function MarkerPanel({
   marker,
   routes,
-  gradeFilter,
+  gradeFilters,
   padFilter,
   visible,
   activePath,
@@ -33,13 +34,19 @@ export default function MarkerPanel({
   const [viewerImages, setViewerImages] = useState<string[] | null>(null)
   const [viewerIndex, setViewerIndex] = useState(0)
 
+  usePopstate(onClose)
+
   useEffect(() => {
     setPhotoIndex(0)
     setSelectedRoute(null)
   }, [marker.id])
 
   const filteredRoutes = routes.filter((r) => {
-    if (gradeFilter && r.grade !== gradeFilter) return false
+    if (gradeFilters.length > 0) {
+      const isV10Plus = ['V10', 'V11', 'V12', 'V13', 'V14', 'V15', 'V16', 'V17'].includes(r.grade)
+      const matches = gradeFilters.some((f) => (f === 'V10+' ? isV10Plus : f === r.grade))
+      if (!matches) return false
+    }
     if (padFilter && r.min_pads > Number(padFilter)) return false
     return true
   })

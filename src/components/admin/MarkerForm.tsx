@@ -7,6 +7,7 @@ import type { Marker, MarkerType } from '@/types'
 
 interface MarkerFormProps {
   marker: Marker | null
+  mapClickCoords?: { lat: number; lng: number } | null
   onDone: () => void
   onCancel: () => void
 }
@@ -20,7 +21,7 @@ const TYPES: { value: MarkerType; label: string }[] = [
 
 const inputClass = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none'
 
-export default function MarkerForm({ marker, onDone, onCancel }: MarkerFormProps) {
+export default function MarkerForm({ marker, mapClickCoords, onDone, onCancel }: MarkerFormProps) {
   const [name, setName] = useState(marker?.name || '')
   const [type, setType] = useState<MarkerType>(marker?.type || 'boulder')
   const [lat, setLat] = useState(marker?.lat?.toString() || '')
@@ -33,6 +34,18 @@ export default function MarkerForm({ marker, onDone, onCancel }: MarkerFormProps
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<any>(null)
   const pinMarker = useRef<any>(null)
+
+  // 관리자 지도에서 클릭한 좌표 반영
+  useEffect(() => {
+    if (!mapClickCoords) return
+    setLat(mapClickCoords.lat.toFixed(6))
+    setLng(mapClickCoords.lng.toFixed(6))
+    if (mapInstance.current && pinMarker.current) {
+      const pos = new window.kakao.maps.LatLng(mapClickCoords.lat, mapClickCoords.lng)
+      mapInstance.current.setCenter(pos)
+      pinMarker.current.setPosition(pos)
+    }
+  }, [mapClickCoords])
 
   // 지도에서 핀 찍기
   useEffect(() => {

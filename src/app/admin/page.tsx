@@ -8,6 +8,7 @@ import MarkerList from '@/components/admin/MarkerList'
 import RouteManager from '@/components/admin/RouteManager'
 import PathManager from '@/components/admin/PathManager'
 import UserManager from '@/components/admin/UserManager'
+import KakaoMap from '@/components/KakaoMap'
 
 type Tab = 'markers' | 'paths' | 'users'
 
@@ -17,6 +18,7 @@ export default function AdminPage() {
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingMarker, setEditingMarker] = useState<Marker | null>(null)
+  const [mapClickCoords, setMapClickCoords] = useState<{ lat: number; lng: number } | null>(null)
 
   const fetchMarkers = async () => {
     const { data } = await supabase.from('markers').select('*').order('created_at', { ascending: false })
@@ -33,6 +35,17 @@ export default function AdminPage() {
     if (selectedMarkerId === id) setSelectedMarkerId(null)
     fetchMarkers()
   }
+
+  const handleMapMarkerSelect = (id: string) => {
+    setSelectedMarkerId(id)
+    setShowForm(false)
+  }
+
+  const handleMapClick = (lat: number, lng: number) => {
+    setMapClickCoords({ lat, lng })
+  }
+
+  const isCreatingMarker = showForm && !editingMarker
 
   return (
     <div className="flex h-full flex-col">
@@ -74,39 +87,91 @@ export default function AdminPage() {
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
-          {/* 좌측: 마커 목록 */}
-          <div className="w-80 flex-shrink-0 overflow-y-auto border-r border-gray-200 bg-white">
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+          {/* 좌측: 지도 */}
+          <div className="w-1/2 flex-shrink-0 border-r border-gray-200">
+            <KakaoMap
+              mode="admin"
+              adminMarkers={markers}
+              adminSelectedMarkerId={selectedMarkerId}
+              onAdminMarkerSelect={handleMapMarkerSelect}
+              onAdminMapClick={handleMapClick}
+              isCreatingMarker={isCreatingMarker}
+            />
+          </div>
+
+          {/* 우측: 마커 목록 + 편집 패널 */}
+          <div className="flex w-1/2 flex-col overflow-hidden">
+            {/* 마커 목록 헤더 */}
+            <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
               <h2 className="font-semibold text-gray-900">마커 ({markers.length})</h2>
               <button
-                onClick={() => { setEditingMarker(null); setShowForm(true) }}
+                onClick={() => {
+                  setEditingMarker(null)
+                  setMapClickCoords(null)
+                  setShowForm(true)
+                }}
                 className="rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600 transition"
               >
                 + 추가
               </button>
             </div>
-            <MarkerList
-              markers={markers}
-              selectedId={selectedMarkerId}
-              onSelect={(id) => { setSelectedMarkerId(id); setShowForm(false) }}
-              onEdit={(m) => { setEditingMarker(m); setShowForm(true) }}
-              onDelete={handleDelete}
-            />
-          </div>
 
-          {/* 우측 */}
-          <div className="flex-1 overflow-y-auto p-6">
             {showForm ? (
-              <MarkerForm
-                marker={editingMarker}
-                onDone={() => { setShowForm(false); setEditingMarker(null); fetchMarkers() }}
-                onCancel={() => { setShowForm(false); setEditingMarker(null) }}
-              />
+              <div className="flex-1 overflow-y-auto p-6">
+                <MarkerForm
+                  marker={editingMarker}
+                  mapClickCoords={mapClickCoords}
+                  onDone={() => {
+                    setShowForm(false)
+                    setEditingMarker(null)
+                    setMapClickCoords(null)
+                    fetchMarkers()
+                  }}
+                  onCancel={() => {
+                    setShowForm(false)
+                    setEditingMarker(null)
+                    setMapClickCoords(null)
+                  }}
+                />
+              </div>
             ) : selectedMarkerId ? (
-              <RouteManager markerId={selectedMarkerId} />
+              <div className="flex flex-1 flex-col overflow-hidden">
+                {/* 마커 목록 (축소) */}
+                <div className="max-h-48 flex-shrink-0 overflow-y-auto border-b border-gray-200">
+                  <MarkerList
+                    markers={markers}
+                    selectedId={selectedMarkerId}
+                    onSelect={(id) => {
+                      setSelectedMarkerId(id)
+                      setShowForm(false)
+                    }}
+                    onEdit={(m) => {
+                      setEditingMarker(m)
+                      setShowForm(true)
+                    }}
+                    onDelete={handleDelete}
+                  />
+                </div>
+                {/* 루트 매니저 */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  <RouteManager markerId={selectedMarkerId} />
+                </div>
+              </div>
             ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-sm text-gray-400">마커를 선택하거나 추가하세요</p>
+              <div className="flex-1 overflow-y-auto">
+                <MarkerList
+                  markers={markers}
+                  selectedId={selectedMarkerId}
+                  onSelect={(id) => {
+                    setSelectedMarkerId(id)
+                    setShowForm(false)
+                  }}
+                  onEdit={(m) => {
+                    setEditingMarker(m)
+                    setShowForm(true)
+                  }}
+                  onDelete={handleDelete}
+                />
               </div>
             )}
           </div>

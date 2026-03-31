@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 바위 볼더링 가이드
 
-## Getting Started
+지도 기반 볼더링 루트 가이드 웹앱.
+관리자가 스팟/루트를 등록하고, 일반 사용자는 조회 및 댓글을 남긴다.
 
-First, run the development server:
+## 기술 스택
+
+| 영역 | 기술 |
+|------|------|
+| 프론트엔드 | Next.js (App Router), TypeScript |
+| 스타일링 | Tailwind CSS |
+| 지도 | Kakao Maps SDK |
+| 백엔드/DB | Supabase (PostgreSQL + Storage) |
+| 인증 | Supabase Auth (Google OAuth) |
+| 배포 | Vercel |
+
+## 주요 기능
+
+- 카카오맵 기반 마커 표시 (볼더/주차장/화장실/갈림길)
+- 마커 클러스터링 (줌 기반)
+- 루트 상세 (사진, 설명, 영상 링크)
+- 어프로치 경로 폴리라인 토글
+- 이미지 풀스크린 뷰어 + 스와이프
+- 댓글 조회/작성 (비로그인)
+- 관리자 페이지 (마커/루트/경로/사용자 CRUD)
+- EXIF GPS 추출 + 50m 반경 감지
+
+## 데이터 모델
+
+- **Marker** — 지도 마커 (boulder/parking/toilet/junction)
+- **Route** — 볼더 루트 (난이도, 패드 수, 사진, 영상)
+- **Path** — 어프로치 경로 (좌표 배열)
+- **Comment** — 루트별 댓글
+- **Profile** — 사용자 역할 관리 (user/admin)
+
+## 배포
+
+- **프로덕션**: https://bahwa-boulder-guide.vercel.app
+- **GitHub**: https://github.com/nice1st/bahwa-boulder-guide
+- GitHub push 시 Vercel 자동 배포
+
+## 로컬 실행
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 환경변수 (.env.local)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_KAKAO_MAP_KEY=
+```
