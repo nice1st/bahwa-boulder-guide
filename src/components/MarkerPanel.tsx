@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Marker, Route } from '@/types'
 import { useSwipe } from '@/lib/useSwipe'
 import { usePopstate } from '@/lib/usePopstate'
@@ -34,6 +34,22 @@ export default function MarkerPanel({
   const [viewerImages, setViewerImages] = useState<string[] | null>(null)
   const [viewerIndex, setViewerIndex] = useState(0)
   const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // capture phase에서 터치 이벤트 차단 (카카오맵 document 리스너보다 먼저 실행)
+  useEffect(() => {
+    const el = panelRef.current
+    if (!el) return
+    const stop = (e: Event) => e.stopPropagation()
+    el.addEventListener('touchstart', stop, { capture: true })
+    el.addEventListener('touchmove', stop, { capture: true })
+    el.addEventListener('mousedown', stop, { capture: true })
+    return () => {
+      el.removeEventListener('touchstart', stop, { capture: true })
+      el.removeEventListener('touchmove', stop, { capture: true })
+      el.removeEventListener('mousedown', stop, { capture: true })
+    }
+  }, [])
 
   const isRouteOpen = selectedRoute !== null
   const isViewerOpen = viewerImages !== null
@@ -111,13 +127,7 @@ export default function MarkerPanel({
   return (
     <>
       <div
-        ref={(el) => {
-          if (!el) return
-          // native level에서 카카오맵 document 리스너 차단
-          el.ontouchstart = (e) => e.stopImmediatePropagation()
-          el.ontouchmove = (e) => e.stopImmediatePropagation()
-          el.onmousedown = (e) => e.stopImmediatePropagation()
-        }}
+        ref={panelRef}
         className={`absolute bottom-0 left-0 right-0 z-20 max-h-[60vh] overflow-y-auto rounded-t-2xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-out ${
           visible ? 'translate-y-0' : 'translate-y-full'
         }`}
