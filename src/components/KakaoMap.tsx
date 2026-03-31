@@ -219,6 +219,8 @@ export default function KakaoMap({
     setActivePath((prev) => (prev === markerId ? null : markerId))
   }, [])
 
+  const gpsOverlayRef = useRef<any>(null)
+
   const handleGpsClick = useCallback(() => {
     if (!navigator.geolocation) {
       alert('위치 정보를 지원하지 않는 브라우저입니다.')
@@ -228,7 +230,26 @@ export default function KakaoMap({
       (pos) => {
         if (mapInstance.current) {
           const loc = new window.kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude)
-          mapInstance.current.panTo(loc)
+          mapInstance.current.setCenter(loc)
+          if (mapInstance.current.getLevel() > 4) {
+            mapInstance.current.setLevel(4)
+          }
+
+          // 기존 위치 마커 제거
+          if (gpsOverlayRef.current) gpsOverlayRef.current.setMap(null)
+
+          // 파란 점 표시
+          const el = document.createElement('div')
+          el.style.cssText = `
+            width: 16px; height: 16px; border-radius: 50%;
+            background: #3b82f6; border: 3px solid white;
+            box-shadow: 0 0 8px rgba(59,130,246,0.6);
+            pointer-events: none;
+          `
+          gpsOverlayRef.current = new window.kakao.maps.CustomOverlay({
+            position: loc, content: el, yAnchor: 0.5, xAnchor: 0.5, zIndex: 100,
+          })
+          gpsOverlayRef.current.setMap(mapInstance.current)
         }
       },
       () => alert('위치 권한을 허용해 주세요.'),
@@ -255,8 +276,41 @@ export default function KakaoMap({
     const currentPadFilter = padFilterRef.current
     const currentAdminSelectedId = adminSelectedMarkerIdRef.current
 
-    const filteredMarkers = currentMarkers.filter((m) => {
-      if (m.type !== 'boulder') return true
+    const currentLevel = map.getLevel()
+
+    // 비볼더 마커: 줌 레벨 5 이하(가까이)에서만 표시, 클러스터링 제외
+    const nonBoulderMarkers = currentMarkers.filter((m) => m.type !== 'boulder')
+    if (currentLevel <= 5) {
+      nonBoulderMarkers.forEach((m) => {
+        const el = document.createElement('div')
+        el.style.cssText = `
+          cursor: pointer;
+          font-size: 28px;
+          line-height: 1;
+          filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+          transition: transform 0.15s;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          user-select: none;
+          padding: 8px;
+        `
+        el.textContent = MARKER_ICONS[m.type] || '📍'
+        el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.3)' })
+        el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)' })
+        el.addEventListener('click', (e) => { e.stopPropagation(); handleMarkerClickRef.current(m) })
+        el.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); handleMarkerClickRef.current(m) })
+
+        const overlay = new window.kakao.maps.CustomOverlay({
+          position: new window.kakao.maps.LatLng(m.lat, m.lng), content: el, yAnchor: 1,
+        })
+        overlay.setMap(map)
+        overlaysRef.current.push(overlay)
+      })
+    }
+
+    // 볼더 마커: 필터 적용 + 클러스터링
+    const boulderMarkers = currentMarkers.filter((m) => {
+      if (m.type !== 'boulder') return false
       if (currentGradeFilters.length === 0 && !currentPadFilter) return true
 
       const mRoutes = currentAllRoutes.filter((r) => r.marker_id === m.id)
@@ -273,7 +327,7 @@ export default function KakaoMap({
       })
     })
 
-    const clusters = clusterMarkers(filteredMarkers, map, 40)
+    const clusters = clusterMarkers(boulderMarkers, map, 40)
 
     clusters.forEach((cluster) => {
       const position = new window.kakao.maps.LatLng(cluster.center.lat, cluster.center.lng)
@@ -404,13 +458,16 @@ export default function KakaoMap({
     const marker = markers.find((m) => m.id === adminSelectedMarkerId)
     if (!marker) return
 
+    const map = mapInstance.current
     const pos = new window.kakao.maps.LatLng(marker.lat, marker.lng)
-    const currentLevel = mapInstance.current.getLevel()
+    const currentLevel = map.getLevel()
     if (currentLevel > 5) {
-      mapInstance.current.setCenter(pos)
-      mapInstance.current.setLevel(5)
+      map.setCenter(pos)
+      map.setLevel(5)
+      // setLevel 후 재렌더 필요
+      setTimeout(() => renderMarkersRef.current(), 50)
     } else {
-      mapInstance.current.panTo(pos)
+      map.panTo(pos)
     }
   }, [isAdmin, adminSelectedMarkerId, markers, mapReady])
 

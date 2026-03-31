@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Marker } from '@/types'
 import MarkerForm from '@/components/admin/MarkerForm'
@@ -46,6 +46,27 @@ export default function AdminPage() {
   }
 
   const isCreatingMarker = showForm && !editingMarker
+  const [listHeight, setListHeight] = useState(200)
+  const dragging = useRef(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    dragging.current = true
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging.current || !containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const y = ev.clientY - rect.top
+      setListHeight(Math.max(80, Math.min(y, rect.height - 100)))
+    }
+    const onUp = () => {
+      dragging.current = false
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [])
 
   return (
     <div className="flex h-full flex-col">
@@ -135,9 +156,9 @@ export default function AdminPage() {
                 />
               </div>
             ) : selectedMarkerId ? (
-              <div className="flex flex-1 flex-col overflow-hidden">
-                {/* 마커 목록 (축소) */}
-                <div className="max-h-48 flex-shrink-0 overflow-y-auto border-b border-gray-200">
+              <div ref={containerRef} className="flex flex-1 flex-col overflow-hidden">
+                {/* 마커 목록 (리사이즈 가능) */}
+                <div className="flex-shrink-0 overflow-y-auto" style={{ height: listHeight }}>
                   <MarkerList
                     markers={markers}
                     selectedId={selectedMarkerId}
@@ -151,6 +172,13 @@ export default function AdminPage() {
                     }}
                     onDelete={handleDelete}
                   />
+                </div>
+                {/* 리사이즈 핸들 */}
+                <div
+                  onMouseDown={handleDragStart}
+                  className="flex h-2 flex-shrink-0 cursor-row-resize items-center justify-center border-y border-gray-200 bg-gray-50 hover:bg-gray-100 transition"
+                >
+                  <div className="h-0.5 w-8 rounded-full bg-gray-300" />
                 </div>
                 {/* 루트 매니저 */}
                 <div className="flex-1 overflow-y-auto p-6">

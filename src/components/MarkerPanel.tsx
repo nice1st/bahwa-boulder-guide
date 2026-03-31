@@ -33,6 +33,7 @@ export default function MarkerPanel({
   const [routeVisible, setRouteVisible] = useState(false)
   const [viewerImages, setViewerImages] = useState<string[] | null>(null)
   const [viewerIndex, setViewerIndex] = useState(0)
+  const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null)
 
   usePopstate(onClose)
 
@@ -58,8 +59,14 @@ export default function MarkerPanel({
 
   const panelSwipe = useSwipe(undefined, undefined, onClose)
 
-  const prevPhoto = useCallback(() => setPhotoIndex((i) => Math.max(0, i - 1)), [])
-  const nextPhoto = useCallback(() => setPhotoIndex((i) => Math.min(allPhotos.length - 1, i + 1)), [allPhotos.length])
+  const prevPhoto = useCallback(() => {
+    setSlideDir('right')
+    setTimeout(() => { setPhotoIndex((i) => Math.max(0, i - 1)); setSlideDir(null) }, 150)
+  }, [])
+  const nextPhoto = useCallback(() => {
+    setSlideDir('left')
+    setTimeout(() => { setPhotoIndex((i) => Math.min(allPhotos.length - 1, i + 1)); setSlideDir(null) }, 150)
+  }, [allPhotos.length])
   const photoSwipe = useSwipe(nextPhoto, prevPhoto)
 
   const openRoute = useCallback((route: Route) => {
@@ -72,10 +79,12 @@ export default function MarkerPanel({
     setTimeout(() => setSelectedRoute(null), 300)
   }, [])
 
-  const openViewer = (images: string[], index: number) => {
+  const openViewer = useCallback((images: string[], index: number) => {
     setViewerImages(images)
     setViewerIndex(index)
-  }
+  }, [])
+
+  const closeViewer = useCallback(() => setViewerImages(null), [])
 
   if (selectedRoute) {
     return (
@@ -90,7 +99,7 @@ export default function MarkerPanel({
           <ImageViewer
             images={viewerImages}
             initialIndex={viewerIndex}
-            onClose={() => setViewerImages(null)}
+            onClose={closeViewer}
           />
         )}
       </>
@@ -143,7 +152,11 @@ export default function MarkerPanel({
             <img
               src={allPhotos[photoIndex]}
               alt=""
-              className="h-full w-full object-cover cursor-pointer"
+              className={`h-full w-full object-cover cursor-pointer transition-all duration-150 ease-out ${
+                slideDir === 'left' ? 'translate-x-[-20px] opacity-60' :
+                slideDir === 'right' ? 'translate-x-[20px] opacity-60' :
+                'translate-x-0 opacity-100'
+              }`}
               draggable={false}
               onClick={() => openViewer(allPhotos, photoIndex)}
             />
@@ -237,7 +250,7 @@ export default function MarkerPanel({
         <ImageViewer
           images={viewerImages}
           initialIndex={viewerIndex}
-          onClose={() => setViewerImages(null)}
+          onClose={closeViewer}
         />
       )}
     </>

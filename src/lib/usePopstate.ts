@@ -9,8 +9,7 @@ export function usePopstate(onBack: () => void) {
     const handlePopState = () => {
       // @ts-expect-error global flag
       if (window[POPSTATE_IGNORE_KEY]) {
-        // @ts-expect-error global flag
-        window[POPSTATE_IGNORE_KEY] = false
+        // 플래그를 여기서 지우지 않음 — 모든 리스너가 무시하도록 timeout 기반 초기화에 맡김
         return
       }
       // 연속 뒤로가기 debounce: 300ms 이내 중복 호출 무시

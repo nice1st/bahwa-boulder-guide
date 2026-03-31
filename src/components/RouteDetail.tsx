@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSwipe } from '@/lib/useSwipe'
 import { usePopstate } from '@/lib/usePopstate'
@@ -20,6 +20,8 @@ export default function RouteDetail({ route, visible, onBack, onClose }: RouteDe
   const [submitting, setSubmitting] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
   const [viewerOpen, setViewerOpen] = useState(false)
+
+  const closeViewer = useCallback(() => setViewerOpen(false), [])
 
   usePopstate(onBack)
 
@@ -213,7 +215,7 @@ export default function RouteDetail({ route, visible, onBack, onClose }: RouteDe
         <ImageViewer
           images={route.photo_urls}
           initialIndex={photoIndex}
-          onClose={() => setViewerOpen(false)}
+          onClose={closeViewer}
         />
       )}
     </>
