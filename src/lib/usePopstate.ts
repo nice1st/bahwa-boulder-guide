@@ -1,48 +1,75 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
-const POPSTATE_IGNORE_KEY = '__popstate_ignore_flag'
+// 글로벌 뒤로가기 콜백 스택
+// 가장 마지막에 등록된(= 최상위) 컴포넌트만 뒤로가기 처리
+const backStack: Array<() => void> = []
+let historyDepth = 0
+
+function ensureHistoryEntry() {
+  if (historyDepth === 0) {
+    window.history.pushState({ __backStack: true }, '')
+  }
+  historyDepth++
+}
+
+function releaseHistoryEntry() {
+  historyDepth--
+  if (historyDepth === 0 && window.history.state?.__backStack) {
+    window.history.back()
+  }
+}
+
+// 글로벌 popstate 핸들러 (한 번만 등록)
+let globalListenerAttached = false
+
+function attachGlobalListener() {
+  if (globalListenerAttached) return
+  globalListenerAttached = true
+
+  window.addEventListener('popstate', () => {
+    if (backStack.length > 0) {
+      const top = backStack[backStack.length - 1]
+      top()
+      // 다음 뒤로가기를 위해 다시 history entry 추가 (스택에 아직 항목이 있으면)
+      if (backStack.length > 0) {
+        window.history.pushState({ __backStack: true }, '')
+      } else {
+        historyDepth = 0
+      }
+    }
+  })
+}
 
 export function usePopstate(onBack: () => void, enabled: boolean = true) {
+  const onBackRef = useRef(onBack)
+  onBackRef.current = onBack
+
+  const callbackRef = useRef<(() => void) | null>(null)
+
   useEffect(() => {
-    if (!enabled) return
-
-    let lastFired = 0
-
-    const handlePopState = () => {
-      // @ts-expect-error global flag
-      if (window[POPSTATE_IGNORE_KEY]) {
-        // 플래그를 여기서 지우지 않음 — 모든 리스너가 무시하도록 timeout 기반 초기화에 맡김
-        return
+    if (!enabled) {
+      // enabled가 false로 바뀌면 스택에서 제거
+      if (callbackRef.current) {
+        const idx = backStack.indexOf(callbackRef.current)
+        if (idx !== -1) backStack.splice(idx, 1)
+        callbackRef.current = null
+        releaseHistoryEntry()
       }
-      // 연속 뒤로가기 debounce: 300ms 이내 중복 호출 무시
-      const now = Date.now()
-      if (now - lastFired < 300) return
-      lastFired = now
-      onBack()
+      return
     }
 
-    // 모달 식별을 위한 고유 ID 부여
-    const modalId = Math.random().toString(36).substr(2, 9)
-    window.history.pushState({ modalId }, '')
-    window.addEventListener('popstate', handlePopState)
+    attachGlobalListener()
+
+    const callback = () => onBackRef.current()
+    callbackRef.current = callback
+    backStack.push(callback)
+    ensureHistoryEntry()
 
     return () => {
-      window.removeEventListener('popstate', handlePopState)
-
-      // 언마운트 될 때, 아직 현재 히스토리가 자신이 푸시한 상태라면 뒤로가기 실행
-      // (X 버튼이나 배경 클릭으로 닫는 경우 히스토리 스택 복구)
-      if (window.history.state?.modalId === modalId) {
-        // @ts-expect-error global flag
-        window[POPSTATE_IGNORE_KEY] = true
-        window.history.back()
-
-        // 브라우저에 따라 back()의 popstate 이벤트가 약간 지연될 수 있으므로
-        // 에러를 방지하기 위해 일정 시간 후 flag 초기화
-        setTimeout(() => {
-          // @ts-expect-error global flag
-          window[POPSTATE_IGNORE_KEY] = false
-        }, 100)
-      }
+      const idx = backStack.indexOf(callback)
+      if (idx !== -1) backStack.splice(idx, 1)
+      callbackRef.current = null
+      releaseHistoryEntry()
     }
-  }, [onBack, enabled])
+  }, [enabled])
 }

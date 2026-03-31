@@ -456,6 +456,10 @@ export default function KakaoMap({
 
     const tryClose = () => {
       setFilterOpen(false)
+      if (panToTimerRef.current) {
+        clearTimeout(panToTimerRef.current)
+        panToTimerRef.current = null
+      }
       if (!suppressCloseRef.current && selectedMarkerRef.current) handleClose()
     }
     const mapEl = mapRef.current!

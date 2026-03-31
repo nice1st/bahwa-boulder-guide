@@ -41,6 +41,12 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
   }, [index])
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    // 2손가락 이상이면 더블탭/스와이프 무시 (핀치줌 등)
+    if (e.touches.length > 1) {
+      lastTap.current = 0
+      return
+    }
+
     const t = e.touches[0]
     startX.current = t.clientX
     startY.current = t.clientY
