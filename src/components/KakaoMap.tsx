@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Marker, Route, Path } from '@/types'
-import MarkerPanel from './MarkerPanel'
 
 declare global {
   interface Window {
@@ -49,25 +48,34 @@ function clusterMarkers(
   return clusters
 }
 
-// --- 어드민 모드 props ---
 interface KakaoMapProps {
   mode?: 'user' | 'admin'
-  // 어드민: 외부에서 마커 데이터 주입
+  // 사용자: 외부 state (page.tsx에서 관리)
+  gradeFilters?: string[]
+  padFilter?: string
+  onGradeFiltersChange?: (filters: string[]) => void
+  onPadFilterChange?: (filter: string) => void
+  activePath?: string | null
+  onMarkerSelect?: (marker: Marker, routes: Route[]) => void
+  onMapTouch?: () => void
+  // 어드민
   adminMarkers?: Marker[]
-  // 어드민: 선택된 마커 ID
   adminSelectedMarkerId?: string | null
-  // 어드민: 마커 선택 콜백
   onAdminMarkerSelect?: (id: string) => void
-  // 어드민: 지도 클릭 좌표 콜백 (마커 생성용)
   onAdminMapClick?: (lat: number, lng: number) => void
-  // 어드민: 마커 생성 모드
   isCreatingMarker?: boolean
-  // 어드민: 뷰포트 변경 콜백
   onBoundsChange?: (bounds: { sw: { lat: number; lng: number }; ne: { lat: number; lng: number } }) => void
 }
 
 export default function KakaoMap({
   mode = 'user',
+  gradeFilters: externalGradeFilters,
+  padFilter: externalPadFilter,
+  onGradeFiltersChange,
+  onPadFilterChange,
+  activePath: externalActivePath,
+  onMarkerSelect,
+  onMapTouch,
   adminMarkers,
   adminSelectedMarkerId,
   onAdminMarkerSelect,
@@ -81,18 +89,15 @@ export default function KakaoMap({
   const polylinesRef = useRef<any[]>([])
   const [internalMarkers, setInternalMarkers] = useState<Marker[]>([])
   const [paths, setPaths] = useState<Path[]>([])
-  const [selectedMarker, setSelectedMarker] = useState<Marker | null>(null)
-  const [routes, setRoutes] = useState<Route[]>([])
-  const [gradeFilters, setGradeFilters] = useState<string[]>([])
-  const [padFilter, setPadFilter] = useState('')
   const [mapReady, setMapReady] = useState(false)
-  const [panelVisible, setPanelVisible] = useState(false)
-  const [activePath, setActivePath] = useState<string | null>(null)
   const [allRoutes, setAllRoutes] = useState<Route[]>([])
   const [filterOpen, setFilterOpen] = useState(false)
 
   const isAdmin = mode === 'admin'
   const markers = isAdmin ? (adminMarkers || []) : internalMarkers
+  const gradeFilters = externalGradeFilters || []
+  const padFilter = externalPadFilter || ''
+  const activePath = externalActivePath || null
 
   // 최신 state를 ref로 유지 (이벤트 리스너에서 참조)
   const markersRef = useRef(markers)
@@ -103,8 +108,6 @@ export default function KakaoMap({
   gradeFiltersRef.current = gradeFilters
   const padFilterRef = useRef(padFilter)
   padFilterRef.current = padFilter
-  const selectedMarkerRef = useRef(selectedMarker)
-  selectedMarkerRef.current = selectedMarker
   const adminSelectedMarkerIdRef = useRef(adminSelectedMarkerId)
   adminSelectedMarkerIdRef.current = adminSelectedMarkerId
   const onAdminMarkerSelectRef = useRef(onAdminMarkerSelect)
@@ -115,6 +118,10 @@ export default function KakaoMap({
   isCreatingMarkerRef.current = isCreatingMarker
   const onBoundsChangeRef = useRef(onBoundsChange)
   onBoundsChangeRef.current = onBoundsChange
+  const onMarkerSelectRef = useRef(onMarkerSelect)
+  onMarkerSelectRef.current = onMarkerSelect
+  const onMapTouchRef = useRef(onMapTouch)
+  onMapTouchRef.current = onMapTouch
 
   // 데이터 fetch (사용자 모드만)
   useEffect(() => {
@@ -153,24 +160,13 @@ export default function KakaoMap({
     wait()
   }, [])
 
-  // 드래그 시작 시 취소할 panTo 타이머
-  const panToTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // 마커 클릭 직후 지도 click으로 인한 즉시 닫힘 방지 플래그
-  const suppressCloseRef = useRef(false)
-
   const handleMarkerClick = useCallback(async (marker: Marker) => {
-    // 어드민 모드: 외부 콜백만 호출
     if (isAdmin) {
       onAdminMarkerSelectRef.current?.(marker.id)
       return
     }
 
-    setSelectedMarker(marker)
-    setPanelVisible(true)
-
-    suppressCloseRef.current = true
-    setTimeout(() => { suppressCloseRef.current = false }, 300)
-
+    // 지도 카메라 이동
     if (mapInstance.current && mapRef.current) {
       const map = mapInstance.current
       const markerPos = new window.kakao.maps.LatLng(marker.lat, marker.lng)
@@ -179,12 +175,8 @@ export default function KakaoMap({
       if (currentLevel > 4) {
         map.setLevel(4)
       }
-      // 패널(60vh)을 고려해 마커를 보이는 영역(상위 40vh) 중앙에 배치
-      // panTo 대신 setCenter로 즉시 완료 (드래그 충돌 방지)
       const proj = map.getProjection()
-      // 먼저 마커 위치로 이동
       map.setCenter(markerPos)
-      // 프로젝션 기반으로 오프셋 계산
       const point = proj.containerPointFromCoords(markerPos)
       const mapHeight = mapRef.current!.clientHeight
       const panelHeight = mapHeight * 0.6
@@ -198,27 +190,18 @@ export default function KakaoMap({
       map.setCenter(newCenter)
     }
 
+    // 루트 fetch 후 외부 콜백
+    let fetchedRoutes: Route[] = []
     if (marker.type === 'boulder') {
       const { data } = await supabase
         .from('routes')
         .select('*')
         .eq('marker_id', marker.id)
         .order('grade')
-      if (data) setRoutes(data)
-    } else {
-      setRoutes([])
+      if (data) fetchedRoutes = data
     }
+    onMarkerSelectRef.current?.(marker, fetchedRoutes)
   }, [isAdmin])
-
-  const handleClose = useCallback(() => {
-    setPanelVisible(false)
-    setActivePath(null)
-    setTimeout(() => setSelectedMarker(null), 300)
-  }, [])
-
-  const handleTogglePath = useCallback((markerId: string) => {
-    setActivePath((prev) => (prev === markerId ? null : markerId))
-  }, [])
 
   const gpsOverlayRef = useRef<any>(null)
 
@@ -435,13 +418,6 @@ export default function KakaoMap({
     }
     window.kakao.maps.event.addListener(map, 'idle', reportBounds)
 
-    window.kakao.maps.event.addListener(map, 'dragstart', () => {
-      if (panToTimerRef.current) {
-        clearTimeout(panToTimerRef.current)
-        panToTimerRef.current = null
-      }
-    })
-
     // 지도 클릭
     window.kakao.maps.event.addListener(map, 'click', (mouseEvent: any) => {
       if (isCreatingMarkerRef.current) {
@@ -452,14 +428,13 @@ export default function KakaoMap({
 
     const tryClose = () => {
       setFilterOpen(false)
-      if (!suppressCloseRef.current && selectedMarkerRef.current) handleClose()
+      onMapTouchRef.current?.()
     }
-    // 카카오맵 이벤트로 닫기 (mapRef DOM이 아닌 카카오맵 자체 이벤트)
     window.kakao.maps.event.addListener(map, 'mousedown', tryClose)
     window.kakao.maps.event.addListener(map, 'touchstart', tryClose)
 
     renderMarkersRef.current()
-  }, [mapReady, handleClose])
+  }, [mapReady])
 
   // markers/filter/선택 변경 시 다시 렌더
   useEffect(() => {
@@ -559,7 +534,7 @@ export default function KakaoMap({
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">난이도</span>
                       {activeCount > 0 && (
                         <button
-                          onClick={() => { setGradeFilters([]); setPadFilter('') }}
+                          onClick={() => { onGradeFiltersChange?.([]); onPadFilterChange?.('') }}
                           className="text-xs text-blue-500 font-medium hover:text-blue-700"
                         >
                           초기화
@@ -573,8 +548,8 @@ export default function KakaoMap({
                           <button
                             key={g}
                             onClick={() =>
-                              setGradeFilters((prev) =>
-                                prev.includes(g) ? prev.filter((f) => f !== g) : [...prev, g]
+                              onGradeFiltersChange?.(
+                                gradeFilters.includes(g) ? gradeFilters.filter((f) => f !== g) : [...gradeFilters, g]
                               )
                             }
                             className={`rounded-lg py-1 text-xs font-semibold transition-colors ${
@@ -595,7 +570,7 @@ export default function KakaoMap({
                       <select
                         className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-700 outline-none focus:border-blue-400"
                         value={padFilter}
-                        onChange={(e) => setPadFilter(e.target.value)}
+                        onChange={(e) => onPadFilterChange?.(e.target.value)}
                       >
                         <option value="">전체</option>
                         {[1, 2, 3, 4, 5].map((n) => (
@@ -622,19 +597,6 @@ export default function KakaoMap({
             🎯
           </button>
 
-          {/* 마커 상세 패널 */}
-          {selectedMarker && (
-            <MarkerPanel
-              marker={selectedMarker}
-              routes={routes}
-              gradeFilters={gradeFilters}
-              padFilter={padFilter}
-              visible={panelVisible}
-              activePath={activePath}
-              onTogglePath={handleTogglePath}
-              onClose={handleClose}
-            />
-          )}
         </>
       )}
     </div>
