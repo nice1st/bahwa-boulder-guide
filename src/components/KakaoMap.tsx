@@ -175,29 +175,27 @@ export default function KakaoMap({
       const map = mapInstance.current
       const markerPos = new window.kakao.maps.LatLng(marker.lat, marker.lng)
 
-      const applyOffset = () => {
-        if (!mapInstance.current) return
-        const proj = map.getProjection()
-        const point = proj.containerPointFromCoords(markerPos)
-        const mapHeight = mapRef.current!.clientHeight
-        const panelHeight = mapHeight * 0.6
-        const visibleHeight = mapHeight - panelHeight
-        const targetY = visibleHeight / 2
-        const dy = point.y - targetY
-        const center = map.getCenter()
-        const centerPoint = proj.containerPointFromCoords(center)
-        centerPoint.y += dy
-        const newCenter = proj.coordsFromContainerPoint(centerPoint)
-        map.panTo(newCenter)
-      }
-
-      if (panToTimerRef.current) clearTimeout(panToTimerRef.current)
       const currentLevel = map.getLevel()
       if (currentLevel > 4) {
-        map.setCenter(markerPos)
         map.setLevel(4)
       }
-      panToTimerRef.current = setTimeout(applyOffset, currentLevel > 4 ? 50 : 10)
+      // 패널(60vh)을 고려해 마커를 보이는 영역(상위 40vh) 중앙에 배치
+      // panTo 대신 setCenter로 즉시 완료 (드래그 충돌 방지)
+      const proj = map.getProjection()
+      // 먼저 마커 위치로 이동
+      map.setCenter(markerPos)
+      // 프로젝션 기반으로 오프셋 계산
+      const point = proj.containerPointFromCoords(markerPos)
+      const mapHeight = mapRef.current!.clientHeight
+      const panelHeight = mapHeight * 0.6
+      const visibleHeight = mapHeight - panelHeight
+      const targetY = visibleHeight / 2
+      const dy = point.y - targetY
+      const center = map.getCenter()
+      const centerPoint = proj.containerPointFromCoords(center)
+      centerPoint.y += dy
+      const newCenter = proj.coordsFromContainerPoint(centerPoint)
+      map.setCenter(newCenter)
     }
 
     if (marker.type === 'boulder') {
@@ -452,21 +450,13 @@ export default function KakaoMap({
       }
     })
 
-    const tryClose = (e: Event) => {
-      // mapRef div 내부에서 발생한 터치만 처리 (패널/오버레이는 mapRef 바깥)
-      const target = e.target as HTMLElement
-      if (!mapRef.current?.contains(target)) return
+    const tryClose = () => {
       setFilterOpen(false)
-      if (panToTimerRef.current) {
-        clearTimeout(panToTimerRef.current)
-        panToTimerRef.current = null
-      }
       if (!suppressCloseRef.current && selectedMarkerRef.current) handleClose()
     }
-    // 부모 div가 아닌 최상위 컨테이너에서 캡처 — mapRef 내부인지 확인
-    const container = mapRef.current!.parentElement!
-    container.addEventListener('mousedown', tryClose)
-    container.addEventListener('touchstart', tryClose, { passive: true })
+    // 카카오맵 이벤트로 닫기 (mapRef DOM이 아닌 카카오맵 자체 이벤트)
+    window.kakao.maps.event.addListener(map, 'mousedown', tryClose)
+    window.kakao.maps.event.addListener(map, 'touchstart', tryClose)
 
     renderMarkersRef.current()
   }, [mapReady, handleClose])
