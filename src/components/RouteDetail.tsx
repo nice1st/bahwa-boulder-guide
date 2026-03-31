@@ -68,6 +68,12 @@ export default function RouteDetail({ route, visible, onBack, onClose }: RouteDe
   return (
     <>
       <div
+        ref={(el) => {
+          if (!el) return
+          el.ontouchstart = (e) => e.stopImmediatePropagation()
+          el.ontouchmove = (e) => e.stopImmediatePropagation()
+          el.onmousedown = (e) => e.stopImmediatePropagation()
+        }}
         className={`absolute bottom-0 left-0 right-0 z-20 max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-out ${
           visible ? 'translate-y-0' : 'translate-y-full'
         }`}

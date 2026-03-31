@@ -430,8 +430,12 @@ export default function KakaoMap({
       setFilterOpen(false)
       onMapTouchRef.current?.()
     }
+    // 카카오맵 이벤트 (PC)
     window.kakao.maps.event.addListener(map, 'mousedown', tryClose)
     window.kakao.maps.event.addListener(map, 'touchstart', tryClose)
+    // 네이티브 백업 (모바일에서 카카오맵 touchstart가 안 발화할 경우)
+    mapRef.current!.addEventListener('touchstart', tryClose, { passive: true })
+    mapRef.current!.addEventListener('mousedown', tryClose)
 
     renderMarkersRef.current()
   }, [mapReady])

@@ -111,6 +111,13 @@ export default function MarkerPanel({
   return (
     <>
       <div
+        ref={(el) => {
+          if (!el) return
+          // native level에서 카카오맵 document 리스너 차단
+          el.ontouchstart = (e) => e.stopImmediatePropagation()
+          el.ontouchmove = (e) => e.stopImmediatePropagation()
+          el.onmousedown = (e) => e.stopImmediatePropagation()
+        }}
         className={`absolute bottom-0 left-0 right-0 z-20 max-h-[60vh] overflow-y-auto rounded-t-2xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-out ${
           visible ? 'translate-y-0' : 'translate-y-full'
         }`}
