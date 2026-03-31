@@ -191,15 +191,13 @@ export default function KakaoMap({
         map.panTo(newCenter)
       }
 
+      if (panToTimerRef.current) clearTimeout(panToTimerRef.current)
       const currentLevel = map.getLevel()
       if (currentLevel > 4) {
         map.setCenter(markerPos)
         map.setLevel(4)
-        if (panToTimerRef.current) clearTimeout(panToTimerRef.current)
-        panToTimerRef.current = setTimeout(applyOffset, 50)
-      } else {
-        applyOffset()
       }
+      panToTimerRef.current = setTimeout(applyOffset, currentLevel > 4 ? 50 : 10)
     }
 
     if (marker.type === 'boulder') {
@@ -454,7 +452,10 @@ export default function KakaoMap({
       }
     })
 
-    const tryClose = () => {
+    const tryClose = (e: Event) => {
+      // 지도 div 자체 또는 카카오맵 내부 요소에서만 닫기 (패널/오버레이 UI 제외)
+      const target = e.target as HTMLElement
+      if (target.closest('[data-panel]') || target.closest('[data-overlay-ui]')) return
       setFilterOpen(false)
       if (panToTimerRef.current) {
         clearTimeout(panToTimerRef.current)
@@ -537,6 +538,7 @@ export default function KakaoMap({
             const activeCount = gradeFilters.length + (padFilter ? 1 : 0)
             return (
               <div
+                data-overlay-ui
                 className="absolute top-4 left-4 z-10"
                 onClick={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
@@ -618,6 +620,7 @@ export default function KakaoMap({
 
           {/* GPS 버튼 */}
           <button
+            data-overlay-ui
             onClick={(e) => {
               e.stopPropagation()
               handleGpsClick()
