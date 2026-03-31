@@ -79,22 +79,31 @@ export default function KakaoMap() {
 
   // 데이터 fetch
   useEffect(() => {
-    supabase.from('markers').select('*').then(({ data }) => {
+    console.log('[DEBUG] data fetch useEffect fired')
+    supabase.from('markers').select('*').then(({ data, error }) => {
+      console.log('[DEBUG] markers response:', data?.length, error)
       if (data) setMarkers(data)
     })
-    supabase.from('paths').select('*').then(({ data }) => {
+    supabase.from('paths').select('*').then(({ data, error }) => {
+      console.log('[DEBUG] paths response:', data?.length, error)
       if (data) setPaths(data)
     })
-    supabase.from('routes').select('*').then(({ data }) => {
+    supabase.from('routes').select('*').then(({ data, error }) => {
+      console.log('[DEBUG] routes response:', data?.length, error)
       if (data) setAllRoutes(data)
     })
   }, [])
 
   // 카카오 SDK 로드 대기
   useEffect(() => {
+    console.log('[DEBUG] kakao SDK useEffect fired')
     const wait = () => {
       if (window.kakao?.maps) {
-        window.kakao.maps.load(() => setMapReady(true))
+        console.log('[DEBUG] kakao.maps found, calling load()')
+        window.kakao.maps.load(() => {
+          console.log('[DEBUG] kakao.maps.load callback, setting mapReady')
+          setMapReady(true)
+        })
       } else {
         setTimeout(wait, 100)
       }
