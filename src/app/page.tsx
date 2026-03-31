@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import KakaoMap from '@/components/KakaoMap'
 
 export default function Home() {
