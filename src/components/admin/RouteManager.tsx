@@ -119,11 +119,13 @@ function RouteForm({
     if (!files) return
     setUploading(true)
 
+    const { resizeImage } = await import('@/lib/resizeImage')
     const urls: string[] = []
     for (const file of Array.from(files)) {
-      const ext = file.name.split('.').pop()
+      const resized = await resizeImage(file)
+      const ext = resized.name.split('.').pop()
       const path = `routes/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-      const { error } = await supabase.storage.from('photos').upload(path, file)
+      const { error } = await supabase.storage.from('photos').upload(path, resized)
       if (!error) {
         const { data } = supabase.storage.from('photos').getPublicUrl(path)
         urls.push(data.publicUrl)

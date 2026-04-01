@@ -458,8 +458,7 @@ export default function KakaoMap({
     if (currentLevel > 5) {
       map.setCenter(pos)
       map.setLevel(5)
-      // setLevel 후 재렌더 필요
-      setTimeout(() => renderMarkersRef.current(), 50)
+      // idle 이벤트가 renderMarkers를 자동 호출
     } else {
       map.panTo(pos)
     }

@@ -93,10 +93,12 @@ export default function MarkerForm({ marker, mapClickCoords, onDone, onCancel }:
     if (!file) return
     setUploading(true)
 
-    // 사진 업로드
-    const ext = file.name.split('.').pop()
+    // 사진 리사이즈+압축 후 업로드
+    const { resizeImage } = await import('@/lib/resizeImage')
+    const resized = await resizeImage(file)
+    const ext = resized.name.split('.').pop()
     const path = `markers/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-    const { error: uploadError } = await supabase.storage.from('photos').upload(path, file)
+    const { error: uploadError } = await supabase.storage.from('photos').upload(path, resized)
     if (!uploadError) {
       const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path)
       setThumbnailUrl(urlData.publicUrl)

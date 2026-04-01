@@ -16,6 +16,9 @@ interface MarkerPanelProps {
   activePath: string | null
   onTogglePath: (markerId: string) => void
   onClose: () => void
+  onHidden?: () => void
+  onRouteChange?: (routeId: string | null) => void
+  initialRouteId?: string | null
 }
 
 export default function MarkerPanel({
@@ -27,6 +30,9 @@ export default function MarkerPanel({
   activePath,
   onTogglePath,
   onClose,
+  onHidden,
+  onRouteChange,
+  initialRouteId,
 }: MarkerPanelProps) {
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null)
   const [photoIndex, setPhotoIndex] = useState(0)
@@ -74,12 +80,22 @@ export default function MarkerPanel({
   const openRoute = useCallback((route: Route) => {
     setSelectedRoute(route)
     setRouteVisible(true)
-  }, [])
+    onRouteChange?.(route.id)
+  }, [onRouteChange])
 
   const closeRoute = useCallback(() => {
     setRouteVisible(false)
-    setTimeout(() => setSelectedRoute(null), 300)
-  }, [])
+    onRouteChange?.(null)
+    // selectedRoute null은 RouteDetail의 transitionend에서 처리
+  }, [onRouteChange])
+
+  // URL에서 initialRouteId가 있으면 해당 루트 자동 오픈
+  useEffect(() => {
+    if (initialRouteId && routes.length > 0 && !selectedRoute) {
+      const route = routes.find((r) => r.id === initialRouteId)
+      if (route) openRoute(route)
+    }
+  }, [initialRouteId, routes, selectedRoute, openRoute])
 
   const openViewer = useCallback((images: string[], index: number) => {
     setViewerImages(images)
@@ -91,6 +107,9 @@ export default function MarkerPanel({
   return (
     <>
       <div
+        onTransitionEnd={(e) => {
+          if (e.propertyName === 'transform' && !visible) onHidden?.()
+        }}
         className={`absolute bottom-0 left-0 right-0 z-20 max-h-[60vh] overflow-y-auto rounded-t-2xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-out ${
           visible ? 'translate-y-0' : 'translate-y-full'
         }`}
@@ -249,6 +268,7 @@ export default function MarkerPanel({
           visible={routeVisible}
           onBack={closeRoute}
           onClose={onClose}
+          onHidden={() => setSelectedRoute(null)}
         />
       )}
 

@@ -37,7 +37,9 @@ function attachGlobalListener() {
 
   window.addEventListener('popstate', () => {
     if (backStack.length > 0) {
-      const top = backStack[backStack.length - 1]
+      // 콜백을 스택에서 즉시 제거 — useEffect cleanup의 이중 release 방지
+      const top = backStack.pop()!
+      historyDepth--
       top()
       if (backStack.length > 0) {
         window.history.pushState({ __backStack: true }, '')
@@ -58,9 +60,11 @@ export function usePopstate(onBack: () => void, enabled: boolean = true) {
     if (!enabled) {
       if (callbackRef.current) {
         const idx = backStack.indexOf(callbackRef.current)
-        if (idx !== -1) backStack.splice(idx, 1)
+        if (idx !== -1) {
+          backStack.splice(idx, 1)
+          releaseHistoryEntry()
+        }
         callbackRef.current = null
-        releaseHistoryEntry()
       }
       return
     }
@@ -73,10 +77,13 @@ export function usePopstate(onBack: () => void, enabled: boolean = true) {
     ensureHistoryEntry()
 
     return () => {
+      // popstate에서 이미 제거된 경우 중복 release 방지
       const idx = backStack.indexOf(callback)
-      if (idx !== -1) backStack.splice(idx, 1)
+      if (idx !== -1) {
+        backStack.splice(idx, 1)
+        releaseHistoryEntry()
+      }
       callbackRef.current = null
-      releaseHistoryEntry()
     }
   }, [enabled])
 }
