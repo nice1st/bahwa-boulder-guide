@@ -3,13 +3,19 @@
 import { useState, useRef, useCallback } from 'react'
 import { usePopstate } from '@/lib/usePopstate'
 
+interface ImageLabel {
+  name: string
+  grade: string
+}
+
 interface ImageViewerProps {
   images: string[]
   initialIndex: number
   onClose: () => void
+  labels?: (ImageLabel | null)[]
 }
 
-export default function ImageViewer({ images, initialIndex, onClose }: ImageViewerProps) {
+export default function ImageViewer({ images, initialIndex, onClose, labels }: ImageViewerProps) {
   const [index, setIndex] = useState(initialIndex)
   const [zoomed, setZoomed] = useState(false)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
@@ -134,6 +140,27 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
       {images.length > 1 && (
         <div className="absolute top-4 left-4 z-[60] rounded-full bg-white/20 px-3 py-1 text-sm text-white">
           {index + 1} / {images.length}
+        </div>
+      )}
+
+      {/* 루트 라벨 — 중앙 상단 */}
+      {labels?.[index] && (
+        <div
+          className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] flex items-baseline gap-1.5 font-extrabold"
+          style={{ paintOrder: 'stroke fill' }}
+        >
+          <span
+            className="text-2xl"
+            style={{ color: '#FBBF24', WebkitTextStroke: '2.5px rgba(0,0,0,0.85)' }}
+          >
+            {labels[index]!.grade}
+          </span>
+          <span
+            className="text-xl"
+            style={{ color: '#ffffff', WebkitTextStroke: '2px rgba(0,0,0,0.85)' }}
+          >
+            {labels[index]!.name}
+          </span>
         </div>
       )}
 

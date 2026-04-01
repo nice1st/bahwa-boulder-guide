@@ -25,7 +25,6 @@ export default function RouteDetail({ route, visible, onBack, onClose }: RouteDe
 
   usePopstate(onBack, !viewerOpen)
 
-  const panelSwipe = useSwipe(undefined, onBack, onClose)
   const photoSwipe = useSwipe(
     () => setPhotoIndex((i) => Math.min(route.photo_urls.length - 1, i + 1)),
     () => setPhotoIndex((i) => Math.max(0, i - 1)),
@@ -72,11 +71,6 @@ export default function RouteDetail({ route, visible, onBack, onClose }: RouteDe
           visible ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
-        {/* 드래그 핸들 */}
-        <div className="flex justify-center pt-3 pb-2 cursor-grab" {...panelSwipe}>
-          <div className="h-1 w-10 rounded-full bg-gray-300" />
-        </div>
-
         {/* 헤더 */}
         <div className="sticky top-0 z-10 flex items-center gap-4 border-b bg-white px-4 py-3">
           <button
@@ -216,6 +210,7 @@ export default function RouteDetail({ route, visible, onBack, onClose }: RouteDe
           images={route.photo_urls}
           initialIndex={photoIndex}
           onClose={closeViewer}
+          labels={route.photo_urls.map(() => ({ name: route.name, grade: route.grade }))}
         />
       )}
     </>

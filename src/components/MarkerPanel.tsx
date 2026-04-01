@@ -54,12 +54,12 @@ export default function MarkerPanel({
     return true
   })
 
-  // 마커 썸네일 + 모든 루트 사진
-  const markerImages = marker.thumbnail_url ? [marker.thumbnail_url] : []
-  const allRoutePhotos = routes.flatMap((r) => r.photo_urls)
-  const allPhotos = [...markerImages, ...allRoutePhotos]
-
-  const panelSwipe = useSwipe(undefined, undefined, onClose)
+  // 마커 썸네일 + 모든 루트 사진 (루트 정보 포함)
+  const allPhotoEntries: { url: string; route?: Route }[] = [
+    ...(marker.thumbnail_url ? [{ url: marker.thumbnail_url }] : []),
+    ...routes.flatMap((r) => r.photo_urls.map((url) => ({ url, route: r }))),
+  ]
+  const allPhotos = allPhotoEntries.map((e) => e.url)
 
   const prevPhoto = useCallback(() => {
     setSlideDir('right')
@@ -95,13 +95,8 @@ export default function MarkerPanel({
           visible ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
-        {/* 드래그 핸들 */}
-        <div className="flex justify-center pt-3 pb-2 cursor-grab" {...panelSwipe}>
-          <div className="h-1 w-10 rounded-full bg-gray-300" />
-        </div>
-
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-4 pb-3">
+        <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <div>
             <h2 className="text-lg font-bold text-gray-900">{marker.name}</h2>
             <p className="text-xs text-gray-400">
@@ -142,6 +137,26 @@ export default function MarkerPanel({
               draggable={false}
               onClick={() => openViewer(allPhotos, photoIndex)}
             />
+            {/* 루트 난이도 + 이름 라벨 — 중앙 상단 */}
+            {allPhotoEntries[photoIndex]?.route && (
+              <div
+                className="absolute top-2 left-1/2 -translate-x-1/2 flex items-baseline gap-1 font-extrabold"
+                style={{ paintOrder: 'stroke fill' }}
+              >
+                <span
+                  className="text-lg"
+                  style={{ color: '#FBBF24', WebkitTextStroke: '2px rgba(0,0,0,0.85)' }}
+                >
+                  {allPhotoEntries[photoIndex].route!.grade}
+                </span>
+                <span
+                  className="text-base"
+                  style={{ color: '#ffffff', WebkitTextStroke: '1.5px rgba(0,0,0,0.85)' }}
+                >
+                  {allPhotoEntries[photoIndex].route!.name}
+                </span>
+              </div>
+            )}
             {allPhotos.length > 1 && (
               <>
                 <button
@@ -243,6 +258,9 @@ export default function MarkerPanel({
           images={viewerImages}
           initialIndex={viewerIndex}
           onClose={closeViewer}
+          labels={allPhotoEntries.map((e) =>
+            e.route ? { name: e.route.name, grade: e.route.grade } : null
+          )}
         />
       )}
     </>

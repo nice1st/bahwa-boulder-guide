@@ -308,7 +308,10 @@ export default function KakaoMap({
       })
     })
 
-    const clusters = clusterMarkers(boulderMarkers, map, 40)
+    // 줌 레벨 2 이하(최대 줌 근처)에서는 클러스터링 해제
+    const clusters = currentLevel <= 2
+      ? boulderMarkers.map((m) => ({ center: { lat: m.lat, lng: m.lng }, markers: [m] }))
+      : clusterMarkers(boulderMarkers, map, 40)
 
     clusters.forEach((cluster) => {
       const position = new window.kakao.maps.LatLng(cluster.center.lat, cluster.center.lng)
