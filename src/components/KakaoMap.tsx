@@ -57,7 +57,7 @@ interface KakaoMapProps {
   onPadFilterChange?: (filter: string) => void
   activePath?: string | null
   onMarkerSelect?: (marker: Marker, routes: Route[]) => void
-  onMapTouch?: () => void
+  panelOpen?: boolean
   // 어드민
   adminMarkers?: Marker[]
   adminSelectedMarkerId?: string | null
@@ -75,7 +75,7 @@ export default function KakaoMap({
   onPadFilterChange,
   activePath: externalActivePath,
   onMarkerSelect,
-  onMapTouch,
+  panelOpen = false,
   adminMarkers,
   adminSelectedMarkerId,
   onAdminMarkerSelect,
@@ -120,9 +120,6 @@ export default function KakaoMap({
   onBoundsChangeRef.current = onBoundsChange
   const onMarkerSelectRef = useRef(onMarkerSelect)
   onMarkerSelectRef.current = onMarkerSelect
-  const onMapTouchRef = useRef(onMapTouch)
-  onMapTouchRef.current = onMapTouch
-
   // 데이터 fetch (사용자 모드만)
   useEffect(() => {
     if (isAdmin) return
@@ -426,15 +423,20 @@ export default function KakaoMap({
       }
     })
 
-    const tryClose = () => {
-      setFilterOpen(false)
-      onMapTouchRef.current?.()
-    }
-    // click 이벤트가 모바일에서 가장 안정적 (touchstart는 카카오맵 내부 stopPropagation 영향)
-    window.kakao.maps.event.addListener(map, 'click', tryClose)
-
     renderMarkersRef.current()
   }, [mapReady])
+
+  // 패널 열림/닫힘에 따라 지도 드래그·줌 제어 (이벤트 전파 대신 API 직접 제어)
+  useEffect(() => {
+    if (!mapInstance.current || !mapReady || isAdmin) return
+    mapInstance.current.setDraggable(!panelOpen)
+    mapInstance.current.setZoomable(!panelOpen)
+  }, [panelOpen, mapReady, isAdmin])
+
+  // 패널 열릴 때 필터 닫기
+  useEffect(() => {
+    if (panelOpen) setFilterOpen(false)
+  }, [panelOpen])
 
   // markers/filter/선택 변경 시 다시 렌더
   useEffect(() => {

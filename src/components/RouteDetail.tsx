@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSwipe } from '@/lib/useSwipe'
 import { usePopstate } from '@/lib/usePopstate'
@@ -20,22 +20,6 @@ export default function RouteDetail({ route, visible, onBack, onClose }: RouteDe
   const [submitting, setSubmitting] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
   const [viewerOpen, setViewerOpen] = useState(false)
-  const routePanelRef = useRef<HTMLDivElement>(null)
-
-  // capture phase에서 터치 이벤트 차단
-  useEffect(() => {
-    const el = routePanelRef.current
-    if (!el) return
-    const stop = (e: Event) => e.stopPropagation()
-    el.addEventListener('touchstart', stop, { capture: true })
-    el.addEventListener('touchmove', stop, { capture: true })
-    el.addEventListener('mousedown', stop, { capture: true })
-    return () => {
-      el.removeEventListener('touchstart', stop, { capture: true })
-      el.removeEventListener('touchmove', stop, { capture: true })
-      el.removeEventListener('mousedown', stop, { capture: true })
-    }
-  }, [])
 
   const closeViewer = useCallback(() => setViewerOpen(false), [])
 
@@ -84,8 +68,7 @@ export default function RouteDetail({ route, visible, onBack, onClose }: RouteDe
   return (
     <>
       <div
-        ref={routePanelRef}
-        className={`absolute bottom-0 left-0 right-0 z-20 max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-out ${
+        className={`absolute bottom-0 left-0 right-0 z-30 max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-out ${
           visible ? 'translate-y-0' : 'translate-y-full'
         }`}
       >

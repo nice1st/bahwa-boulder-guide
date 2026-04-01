@@ -22,7 +22,7 @@ export default function RootLayout({
     <html lang="ko" className={`${geistSans.variable} h-full`}>
       <body className="h-full bg-white text-gray-900">
         <Script
-          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false&libraries=clusterer`}
+          src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false&libraries=clusterer`}
           strategy="beforeInteractive"
         />
         {children}

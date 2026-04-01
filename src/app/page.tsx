@@ -26,10 +26,6 @@ export default function Home() {
     setTimeout(() => setSelectedMarker(null), 300)
   }, [])
 
-  const handleMapTouch = useCallback(() => {
-    if (selectedMarker) handleClose()
-  }, [selectedMarker, handleClose])
-
   const handleTogglePath = useCallback((markerId: string) => {
     setActivePath((prev) => (prev === markerId ? null : markerId))
   }, [])
@@ -45,8 +41,16 @@ export default function Home() {
           onPadFilterChange={setPadFilter}
           activePath={activePath}
           onMarkerSelect={handleMarkerSelect}
-          onMapTouch={handleMapTouch}
+          panelOpen={panelVisible}
         />
+        {/* 투명 backdrop: 지도 영역 터치 → 패널 닫기 (카카오맵 이벤트에 의존하지 않음) */}
+        {panelVisible && (
+          <div
+            className="absolute inset-0 z-10"
+            onClick={handleClose}
+            onTouchEnd={handleClose}
+          />
+        )}
         {selectedMarker && (
           <MarkerPanel
             marker={selectedMarker}
