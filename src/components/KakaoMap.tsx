@@ -319,25 +319,51 @@ export default function KakaoMap({
       if (cluster.markers.length === 1) {
         const m = cluster.markers[0]
         const isSelected = isAdmin && m.id === currentAdminSelectedId
+
+        // 볼더 마커: 원형 썸네일 이미지로 표시
+        const thumbUrl = m.thumbnail_url
+          || currentAllRoutes.find((r) => r.marker_id === m.id && r.photo_urls?.length > 0)?.photo_urls[0]
+          || null
+
         const el = document.createElement('div')
-        el.style.cssText = `
-          cursor: pointer;
-          font-size: ${isSelected ? '36px' : '28px'};
-          line-height: 1;
-          filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-          transition: transform 0.15s;
-          -webkit-tap-highlight-color: transparent;
-          touch-action: manipulation;
-          user-select: none;
-          padding: 8px;
-          ${isSelected ? 'transform: scale(1.2); filter: drop-shadow(0 0 6px rgba(59,130,246,0.8));' : ''}
-        `
-        el.textContent = MARKER_ICONS[m.type] || '📍'
+        const size = isSelected ? 52 : 44
+        if (thumbUrl) {
+          el.style.cssText = `
+            cursor: pointer;
+            width: ${size}px;
+            height: ${size}px;
+            border-radius: 50%;
+            border: 3px solid ${isSelected ? '#3b82f6' : '#ffffff'};
+            background-image: url(${thumbUrl});
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+            transition: transform 0.15s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            ${isSelected ? 'transform: scale(1.15); box-shadow: 0 0 0 3px rgba(59,130,246,0.5), 0 2px 8px rgba(0,0,0,0.3);' : ''}
+          `
+        } else {
+          el.style.cssText = `
+            cursor: pointer;
+            font-size: ${isSelected ? '36px' : '28px'};
+            line-height: 1;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+            transition: transform 0.15s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            padding: 8px;
+            ${isSelected ? 'transform: scale(1.2); filter: drop-shadow(0 0 6px rgba(59,130,246,0.8));' : ''}
+          `
+          el.textContent = MARKER_ICONS[m.type] || '📍'
+        }
         el.addEventListener('mouseenter', () => {
-          if (!isAdmin || m.id !== currentAdminSelectedId) el.style.transform = 'scale(1.3)'
+          if (!isAdmin || m.id !== currentAdminSelectedId) el.style.transform = 'scale(1.15)'
         })
         el.addEventListener('mouseleave', () => {
-          if (!isAdmin || m.id !== currentAdminSelectedId) el.style.transform = isSelected ? 'scale(1.2)' : 'scale(1)'
+          if (!isAdmin || m.id !== currentAdminSelectedId) el.style.transform = isSelected ? 'scale(1.15)' : 'scale(1)'
         })
         el.addEventListener('click', (e) => { e.stopPropagation(); handleMarkerClickRef.current(m) })
         el.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); handleMarkerClickRef.current(m) })
@@ -345,7 +371,7 @@ export default function KakaoMap({
         const overlay = new window.kakao.maps.CustomOverlay({
           position: new window.kakao.maps.LatLng(m.lat, m.lng),
           content: el,
-          yAnchor: 1,
+          yAnchor: 0.5,
           zIndex: isSelected ? 10 : 1,
         })
         overlay.setMap(map)
